@@ -1,0 +1,13 @@
+Package: gnome-shell-extension-fadeout
+Version: 0.1.0
+Section: gnome
+Priority: optional
+Architecture: all
+Depends: gnome-shell (>= 47~)
+Maintainer: laan <laan@laan.dev>
+Homepage: https://github.com/laan/fadeout
+Description: Dim unfocused windows in GNOME Shell
+ FadeOut dims all windows except the currently focused one,
+ helping you concentrate on the task at hand. Includes a
+ panel indicator with a fade factor slider and a full
+ preferences window.

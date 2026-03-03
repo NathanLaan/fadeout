@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Focused window (front, bright) -->
+  <rect x="5" y="5" width="10" height="10" rx="1" ry="1"
+        fill="currentColor" opacity="1.0" stroke="none"/>
+  <!-- Unfocused window (back, dimmed) -->
+  <rect x="1" y="1" width="10" height="10" rx="1" ry="1"
+        fill="currentColor" opacity="0.35" stroke="none"/>
+</svg>

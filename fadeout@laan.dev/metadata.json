@@ -1,0 +1,9 @@
+{
+  "extension-id": "fadeout",
+  "uuid": "fadeout@laan.dev",
+  "settings-schema": "org.gnome.shell.extensions.fadeout",
+  "name": "FadeOut",
+  "description": "Dims all windows except the currently focused one, helping you concentrate on the task at hand.",
+  "shell-version": ["47", "48", "49"],
+  "url": "https://github.com/laan/fadeout"
+}

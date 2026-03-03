@@ -1,0 +1,7 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: fadeout
+Source: https://github.com/laan/fadeout
+
+Files: *
+Copyright: 2026 laan <laan@laan.dev>
+License: MIT

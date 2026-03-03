@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    rm -f /usr/share/gnome-shell/extensions/fadeout@laan.dev/schemas/gschemas.compiled 2>/dev/null || true
+fi
+
+#DEBHELPER#

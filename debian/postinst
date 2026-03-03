@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    glib-compile-schemas /usr/share/gnome-shell/extensions/fadeout@laan.dev/schemas/ 2>/dev/null || true
+fi
+
+#DEBHELPER#

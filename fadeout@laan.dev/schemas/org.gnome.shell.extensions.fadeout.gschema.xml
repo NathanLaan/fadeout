@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.fadeout"
+          path="/org/gnome/shell/extensions/fadeout/">
+
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Enable dimming</summary>
+      <description>Whether to dim unfocused windows.</description>
+    </key>
+
+    <key name="fade-factor" type="d">
+      <default>0.5</default>
+      <range min="0.0" max="1.0"/>
+      <summary>Fade out factor</summary>
+      <description>How much to dim unfocused windows. 0.0 = no dimming, 1.0 = fully black.</description>
+    </key>
+
+    <key name="animation-duration" type="i">
+      <default>200</default>
+      <range min="0" max="1000"/>
+      <summary>Animation duration</summary>
+      <description>Duration of the fade animation in milliseconds.</description>
+    </key>
+
+  </schema>
+</schemalist>
