@@ -13,6 +13,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
 const EFFECT_NAME = 'fadeout-dim';
+const PANEL_EFFECT_NAME = 'fadeout-panel-dim';
 
 const GLSL_DECLARATIONS = `
 uniform float brightness;
@@ -161,6 +162,15 @@ export default class FadeOutExtension extends Extension {
             this._settings, this.path);
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
+        // Create the fullscreen overlay (hidden until fullscreen mode is active)
+        this._overlay = new Clutter.Actor({
+            name: 'fadeout-overlay',
+            background_color: new Clutter.Color({red: 0, green: 0, blue: 0, alpha: 255}),
+            reactive: false,
+            opacity: 0,
+            visible: false,
+        });
+
         // Connect to focus changes
         this._connectSignal(global.display, 'notify::focus-window',
             () => this._onFocusChanged());
@@ -182,6 +192,8 @@ export default class FadeOutExtension extends Extension {
             () => this._onFadeFactorChanged());
         this._connectSignal(this._settings, 'changed::animation-duration',
             () => {});  // picked up dynamically
+        this._connectSignal(this._settings, 'changed::mode',
+            () => this._onModeChanged());
 
         this._overviewVisible = Main.overview.visible;
 
@@ -191,8 +203,13 @@ export default class FadeOutExtension extends Extension {
     }
 
     disable() {
-        // Remove all effects from all windows
+        // Remove all effects from all windows, overlay, and panel
         this._removeAllEffects();
+        this._removeFullscreenEffects();
+
+        // Destroy overlay
+        this._overlay?.destroy();
+        this._overlay = null;
 
         // Disconnect all signals
         for (const {obj, id} of this._signalIds)
@@ -217,6 +234,7 @@ export default class FadeOutExtension extends Extension {
         if (this._overviewVisible)
             return;
 
+        const isFullscreen = this._settings.get_string('mode') === 'fullscreen';
         const focusWindow = global.display.get_focus_window();
         const focusApp = focusWindow?.get_pid();
 
@@ -244,6 +262,12 @@ export default class FadeOutExtension extends Extension {
             else
                 this._dimWindow(actor);
         }
+
+        // Fullscreen mode: dim background overlay and panel
+        if (isFullscreen && focusWindow)
+            this._showFullscreenEffects();
+        else
+            this._removeFullscreenEffects();
     }
 
     _onWindowCreated(metaWindow) {
@@ -267,6 +291,7 @@ export default class FadeOutExtension extends Extension {
     _onOverviewShowing() {
         this._overviewVisible = true;
         this._removeAllEffects();
+        this._removeFullscreenEffects();
     }
 
     _onOverviewHidden() {
@@ -276,10 +301,12 @@ export default class FadeOutExtension extends Extension {
     }
 
     _onEnabledChanged() {
-        if (this._settings.get_boolean('enabled'))
+        if (this._settings.get_boolean('enabled')) {
             this._onFocusChanged();
-        else
+        } else {
             this._removeAllEffects();
+            this._removeFullscreenEffects();
+        }
     }
 
     _onFadeFactorChanged() {
@@ -300,6 +327,9 @@ export default class FadeOutExtension extends Extension {
                     });
             }
         }
+
+        // Update fullscreen effects if active
+        this._updateFullscreenEffects(fadeFactor, duration);
     }
 
     _dimWindow(actor) {
@@ -340,6 +370,129 @@ export default class FadeOutExtension extends Extension {
                 actor.remove_effect_by_name(EFFECT_NAME);
             },
         });
+    }
+
+    _onModeChanged() {
+        if (!this._settings.get_boolean('enabled'))
+            return;
+
+        if (this._settings.get_string('mode') === 'fullscreen')
+            this._onFocusChanged();
+        else
+            this._removeFullscreenEffects();
+    }
+
+    _showFullscreenEffects() {
+        const fadeFactor = this._settings.get_double('fade-factor');
+        const targetOpacity = Math.round(fadeFactor * 255);
+        const targetBrightness = 1.0 - fadeFactor;
+        const duration = this._settings.get_int('animation-duration');
+
+        // Background overlay
+        if (!this._overlay.get_parent()) {
+            const uiGroup = Main.layoutManager.uiGroup;
+            uiGroup.add_child(this._overlay);
+            uiGroup.set_child_below_sibling(this._overlay,
+                global.window_group);
+        }
+
+        // Size the overlay to cover all monitors
+        const {x, y, width, height} = Main.layoutManager.monitors.reduce(
+            (acc, m) => ({
+                x: Math.min(acc.x, m.x),
+                y: Math.min(acc.y, m.y),
+                width: Math.max(acc.width, m.x + m.width),
+                height: Math.max(acc.height, m.y + m.height),
+            }),
+            {x: 0, y: 0, width: 0, height: 0});
+        this._overlay.set_position(x, y);
+        this._overlay.set_size(width, height);
+        this._overlay.visible = true;
+
+        this._overlay.remove_transition('opacity');
+        this._overlay.ease({
+            opacity: targetOpacity,
+            duration,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+
+        // Panel brightness effect
+        let panelEffect = Main.panel.get_effect(PANEL_EFFECT_NAME);
+        if (!panelEffect) {
+            panelEffect = new BrightnessEffect();
+            panelEffect.brightness = 1.0;
+            Main.panel.add_effect_with_name(PANEL_EFFECT_NAME, panelEffect);
+        }
+
+        Main.panel.remove_transition(
+            `@effects.${PANEL_EFFECT_NAME}.brightness`);
+        Main.panel.ease_property(
+            `@effects.${PANEL_EFFECT_NAME}.brightness`,
+            targetBrightness, {
+                duration,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+    }
+
+    _removeFullscreenEffects() {
+        const duration = this._settings?.get_int('animation-duration') ?? 0;
+
+        // Fade out and detach overlay
+        if (this._overlay?.get_parent()) {
+            this._overlay.remove_transition('opacity');
+            this._overlay.ease({
+                opacity: 0,
+                duration,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => {
+                    this._overlay?.get_parent()?.remove_child(this._overlay);
+                    if (this._overlay)
+                        this._overlay.visible = false;
+                },
+            });
+        }
+
+        // Remove panel effect
+        const panelEffect = Main.panel.get_effect(PANEL_EFFECT_NAME);
+        if (panelEffect) {
+            Main.panel.remove_transition(
+                `@effects.${PANEL_EFFECT_NAME}.brightness`);
+            Main.panel.ease_property(
+                `@effects.${PANEL_EFFECT_NAME}.brightness`, 1.0, {
+                    duration,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    onComplete: () => {
+                        Main.panel.remove_effect_by_name(PANEL_EFFECT_NAME);
+                    },
+                });
+        }
+    }
+
+    _updateFullscreenEffects(fadeFactor, duration) {
+        // Update overlay opacity if visible
+        if (this._overlay?.get_parent()) {
+            const targetOpacity = Math.round(fadeFactor * 255);
+            this._overlay.remove_transition('opacity');
+            this._overlay.ease({
+                opacity: targetOpacity,
+                duration,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
+
+        // Update panel effect if present
+        const panelEffect = Main.panel.get_effect(PANEL_EFFECT_NAME);
+        if (panelEffect) {
+            const targetBrightness = 1.0 - fadeFactor;
+            Main.panel.remove_transition(
+                `@effects.${PANEL_EFFECT_NAME}.brightness`);
+            Main.panel.ease_property(
+                `@effects.${PANEL_EFFECT_NAME}.brightness`,
+                targetBrightness, {
+                    duration,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+        }
     }
 
     _removeAllEffects() {

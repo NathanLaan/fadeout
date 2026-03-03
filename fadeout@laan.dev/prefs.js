@@ -30,6 +30,32 @@ export default class FadeOutPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT);
         behaviorGroup.add(enableRow);
 
+        // Mode selector
+        const modeModel = new Gtk.StringList();
+        modeModel.append(_('Window'));
+        modeModel.append(_('Fullscreen'));
+
+        const modeRow = new Adw.ComboRow({
+            title: _('Mode'),
+            subtitle: _('Window dims only unfocused windows. Fullscreen dims the entire screen except the focused window.'),
+            model: modeModel,
+        });
+
+        // Sync setting -> widget
+        const modeValues = ['window', 'fullscreen'];
+        modeRow.set_selected(
+            Math.max(0, modeValues.indexOf(settings.get_string('mode'))));
+
+        modeRow.connect('notify::selected', () => {
+            settings.set_string('mode', modeValues[modeRow.get_selected()]);
+        });
+        settings.connect('changed::mode', () => {
+            modeRow.set_selected(
+                Math.max(0, modeValues.indexOf(settings.get_string('mode'))));
+        });
+
+        behaviorGroup.add(modeRow);
+
         // --- Appearance Group ---
         const appearanceGroup = new Adw.PreferencesGroup({
             title: _('Appearance'),
@@ -106,6 +132,6 @@ export default class FadeOutPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT);
         appearanceGroup.add(animRow);
 
-        window.set_default_size(450, 400);
+        window.set_default_size(500, 550);
     }
 }

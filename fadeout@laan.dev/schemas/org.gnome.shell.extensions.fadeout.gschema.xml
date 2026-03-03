@@ -16,6 +16,12 @@
       <description>How much to dim unfocused windows. 0.0 = no dimming, 1.0 = fully black.</description>
     </key>
 
+    <key name="mode" type="s">
+      <default>'window'</default>
+      <summary>Dimming mode</summary>
+      <description>Which elements to dim. "window" dims only unfocused windows. "fullscreen" dims the entire screen (desktop, panel, and unfocused windows) except the focused window.</description>
+    </key>
+
     <key name="animation-duration" type="i">
       <default>200</default>
       <range min="0" max="1000"/>
